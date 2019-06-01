@@ -1,0 +1,365 @@
+GameFrame类：
+package game;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.Date;
+
+import javax.swing.JFrame;
+public class GameFrame extends JFrame{
+	Image planeImg=GameUtil.getImage("images/plane.png");
+	Image timg=GameUtil.getImage("images/timg.jpg");
+	
+	Plane plane=new Plane(planeImg,234,400);
+	shell shells[]=new shell[30]; 
+	Explode bao;
+	Date startTime=new Date();
+	Date endTime;
+	int period;
+	//画图片（加载图片）
+	public void paint(Graphics g) {
+		Color c=g.getColor();	
+		g.drawImage(timg,0,0,null);
+		plane.drawSelf(g);//画飞机
+		
+		//画炮弹
+		for(int i=0;i<shells.length;i++) {
+			shells[i].draw(g);
+			//矩形检测（飞机 炮弹的碰撞检测）
+			boolean peng=shells[i].getRect().intersects(plane.getRect());
+			if(peng) {
+				plane.live=false;
+				if(bao==null) {
+				bao=new Explode(plane.x,plane.y);
+				
+				endTime=new Date();
+				period=(int) ((endTime.getTime()-startTime.getTime())/1000);
+				
+				}
+				bao.draw(g);
+				
+			}
+		 if(!plane.live) {
+			 
+			if(period<=10) {
+				g.setColor(Color.red);
+				Font f=new Font("宋体",Font.BOLD,30);	
+				g.setFont(f);
+				g.drawString("你真是一个菜鸟！！！", 100, 320);
+				g.drawString("游戏时间："+period+"秒", 140, 400);
+				g.setFont(f);
+			}
+			else if(period<=30) {
+            	g.setColor(Color.red);
+				Font f=new Font("宋体",Font.BOLD,30);
+				g.setFont(f);
+            	g.drawString("你比菜鸟高一等级！！！", 100, 320);
+				g.drawString("游戏时间："+period+"秒", 140, 400);
+				g.setFont(f);
+			}
+			else if(period<50) {
+            	g.setColor(Color.red);
+				Font f=new Font("宋体",Font.BOLD,30);
+				g.setFont(f);
+            	g.drawString("加油，再接再厉！！！", 100, 320);
+				g.drawString("游戏时间："+period+"秒", 140, 400);
+				g.setFont(f);
+            }
+			else{
+            	g.setColor(Color.red);
+				Font f=new Font("宋体",Font.BOLD,30);
+				g.setFont(f);
+            	g.drawString("厉害了大神！！！", 100, 320);
+				g.drawString("游戏时间："+period+"秒", 140, 400);
+				g.setFont(f);
+            }
+            
+		  }
+		}
+		g.setColor(c);
+	
+	}
+	
+	 Image offScreenImage=null;
+	public void update(Graphics g) {
+		if(offScreenImage==null) {
+			offScreenImage=this.createImage(413,663);
+			Graphics gOff=offScreenImage.getGraphics();
+			paint(gOff);
+			g.drawImage(offScreenImage,0,0,null);
+		}
+	}
+	
+	//反复重画窗口（实现动画效果）
+	class paintThread extends Thread {
+		public void run() {
+		while(true) {
+		repaint();
+		try {
+			Thread.sleep(80);
+		}
+		catch(InterruptedException e){
+			e.printStackTrace();
+		}
+		}
+	  }
+	}
+	//定义键盘监听内部类
+	class KeyMonitor extends KeyAdapter{	
+		public void keyPressed(KeyEvent e) {
+			plane.addDirection(e);
+		}
+
+		public void keyReleased(KeyEvent e) {
+			plane.minusDirection(e);
+		}
+		
+	}
+	//初始化窗口
+	public void lanuchFrame(){
+		this.setTitle("Large-scale Aircraft Openration");
+		this.setSize(413,663);
+		this.setVisible(true);
+		this.setLocation(0,0);
+		
+		this.addWindowListener (new WindowAdapter() {
+			public void windowClosing(WindowEvent e) {
+				System.exit(0);
+			}
+		});
+		
+		new paintThread().start();//启动重画窗口的线程
+		addKeyListener(new KeyMonitor());//给窗口增加键盘的监听
+		
+		//初始化20个炮弹
+		for(int i=0;i<shells.length;i++) {
+			shells[i]=new shell();
+		}
+		
+	}
+
+	public static void main(String[] args) {
+		 GameFrame game=new GameFrame();
+		 game.lanuchFrame();
+	}
+
+}
+
+GameUtil 类：
+package game;
+//加载图片方法
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.net.URL;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+
+public class GameUtil {
+	private GameUtil() {
+	}
+	public static Image getImage(String path) {
+		BufferedImage bi=null;
+		try {
+			URL u=GameUtil.class.getClassLoader().getResource(path);
+			bi=ImageIO.read(u);
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+		}
+		return bi;
+	}	
+}
+
+GameObject类：
+package game;
+
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.Rectangle;
+
+public class GameObject {
+	Image img;
+	double x,y;
+	int speed=7;//速度
+	int width,height;
+	//画自己
+	public void drawSelf(Graphics g) {
+		g.drawImage(img,(int)x,(int)y,null);
+	}
+	
+	//弄几个构造器备用
+	public GameObject(Image img, double x, double y, int speed, int width, int height) {
+		super();
+		this.img = img;
+		this.x = x;
+		this.y = y;
+		this.speed = speed;
+		this.width = width;
+		this.height = height;
+	}
+
+	public GameObject(Image img, double x, double y) {
+		super();
+		this.img = img;
+		this.x = x;
+		this.y = y;
+	}
+	
+	public GameObject() {
+	}
+	
+	//利于后期碰撞检测（矩形类）"矩形检测"
+	public Rectangle getRect() {
+		return new Rectangle((int)x,(int)y,width,height);
+	}	
+}
+
+Plane类：
+package game;
+
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.event.KeyEvent;
+
+public class Plane extends GameObject{
+	boolean left,up,right,down;
+	boolean live=true;
+	public void drawSelf(Graphics g) {
+		//飞机生死（存在或消失）
+		if(live) {
+		g.drawImage(img,(int)x,(int)y,null);
+		if(left) {
+			x-=speed;
+		}
+		if(right) {
+			x+=speed;
+		}
+		if(up) {
+			y-=speed;
+		}
+		if(down) {
+			y+=speed;
+		}
+	  }else {}
+	}
+	
+	//按下某个按键，增加相应的方向
+		public void addDirection(KeyEvent e) {
+			switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT://VK是虚拟键
+				left=true;
+				break;
+			case KeyEvent.VK_UP:
+				up=true;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right=true;
+				break;
+			case KeyEvent.VK_DOWN:
+				down=true;
+				break;
+				
+			}
+		}
+		
+		//按下某个按键，取消相应的方向
+	      public void minusDirection(KeyEvent e) {
+			switch(e.getKeyCode()) {
+			case KeyEvent.VK_LEFT:
+				left=false;
+				break;
+			case KeyEvent.VK_UP:
+				up=false;
+				break;
+			case KeyEvent.VK_RIGHT:
+				right=false;
+			    break;
+			case KeyEvent.VK_DOWN:
+				down=false;
+				break;			
+					}
+				}
+	      
+	public Plane(Image img, double x, double y) {
+		super(img, x, y);
+		this.img=img;
+		this.x=x;
+		this.y=y;
+		this.width =img.getWidth(null);//获取图片宽度
+		this.height =img.getHeight(null);//获取图片高度
+	}
+	
+}
+shell类：
+package game;
+
+import java.awt.Color;
+import java.awt.Graphics;
+
+public class shell extends GameObject{
+	
+	double degree;
+	
+	public shell() {
+		degree=Math.random()*Math.PI*2;//随机定义炮弹的角度（炮弹的方向随机）
+		x=230;
+		y=30;
+		width=10;
+		height=10;
+		speed=6;
+	}
+	//画炮弹
+	public void draw(Graphics g) {
+		Color c=g.getColor();//保存原本的颜色，在调用定义的颜色后，恢复以前的颜色
+		g.setColor(Color.yellow );
+		g.fillOval((int)x,(int) y, width, height);
+		
+		x=x+speed*Math.cos(degree);
+		y=y+speed*Math.sin(degree);
+		
+		if(x<0||x>397) {
+			degree=Math.PI-degree;
+		}
+        if(y<30|y>640) {
+			degree=-degree;
+		}
+        //恢复原来的颜色
+		g.setColor(c);
+	}
+	
+}
+
+Explode类：
+package game;
+
+import java.awt.Graphics;
+import java.awt.Image;
+
+//爆炸类
+public class Explode{
+		double x,y;
+		static Image[] imgs=new Image[16];
+		static {
+			for(int i=0;i<imgs.length;i++){
+				imgs[i]=GameUtil.getImage("images/explode/a"+(i+1)+".png");
+				imgs[i].getWidth(null);
+			}	
+		}
+		int count;
+		public void draw(Graphics g) {
+			if(count<=15) {
+				g.drawImage(imgs[count],(int)x,(int)y,null);
+				count++;
+			}
+		}
+		public Explode(double x,double y) {
+			this.x=x;
+			this.y=y;
+		}
+}
